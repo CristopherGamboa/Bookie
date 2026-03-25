@@ -1,4 +1,4 @@
-package main.java.duoc;
+package duoc;
 
 import com.microsoft.azure.functions.ExecutionContext;
 import com.microsoft.azure.functions.HttpMethod;
