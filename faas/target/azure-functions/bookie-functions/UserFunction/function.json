@@ -1,6 +1,6 @@
 {
   "scriptFile" : "../bookie-functions-1.0-SNAPSHOT.jar",
-  "entryPoint" : "main.java.duoc.UserFunction.run",
+  "entryPoint" : "duoc.UserFunction.run",
   "bindings" : [ {
     "type" : "httpTrigger",
     "direction" : "in",
