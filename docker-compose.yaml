@@ -1,0 +1,16 @@
+
+services:
+  oracle-db:
+    image: gvenzl/oracle-xe:latest
+    container_name: oracle-biblioteca
+    environment:
+      - ORACLE_PASSWORD=Admin1.
+      - APP_USER=bookie_admin          
+      - APP_USER_PASSWORD=Admin1.      
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle_data:/opt/oracle/oradata
+
+volumes:
+  oracle_data:
