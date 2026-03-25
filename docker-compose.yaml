@@ -6,11 +6,29 @@ services:
     environment:
       - ORACLE_PASSWORD=Admin1.
       - APP_USER=bookie_admin          
-      - APP_USER_PASSWORD=Admin1.      
+      - APP_USER_PASSWORD=Admin1.
     ports:
       - "1521:1521"
     volumes:
       - oracle_data:/opt/oracle/oradata
+    networks:
+      - cloud_network
+
+  bff-app:
+    build:
+      context: ./bff
+      dockerfile: Dockerfile
+    container_name: bff-biblioteca
+    ports:
+      - "8080:8080"
+    depends_on:
+      - oracle-db
+    networks:
+      - cloud_network
 
 volumes:
   oracle_data:
+
+networks:
+  cloud_network:
+    driver: bridge

@@ -1,12 +1,12 @@
 {
   "scriptFile" : "../bookie-functions-1.0-SNAPSHOT.jar",
-  "entryPoint" : "duoc.UserFunction.run",
+  "entryPoint" : "duoc.CreateLoanFunction.run",
   "bindings" : [ {
     "type" : "httpTrigger",
     "direction" : "in",
     "name" : "req",
-    "route" : "users",
-    "methods" : [ "GET", "POST" ],
+    "route" : "loans",
+    "methods" : [ "POST" ],
     "authLevel" : "ANONYMOUS"
   }, {
     "type" : "http",

@@ -1,3 +1,5 @@
-duoc\UserFunction.class
-duoc\Function.class
-duoc\LoanFunction.class
+duoc\CreateLoanFunction.class
+duoc\CreateUserFunction.class
+duoc\DatabaseUtil.class
+duoc\GetLoansFunction.class
+duoc\GetUsersFunction.class

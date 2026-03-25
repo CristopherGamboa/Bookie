@@ -1,13 +1,23 @@
 # Bookie Azure Functions
 
-Este módulo contiene dos funciones Azure Serverless para gestionar usuarios y préstamos de una biblioteca.
+Este módulo contiene cuatro funciones Azure Serverless refactorizadas siguiendo el principio de Responsabilidad Única (SRP). Cada función es atómica y maneja una única responsabilidad.
+
+## Arquitectura Refactorizada (SRP)
+
+Las funciones están organizadas para máxima escalabilidad y mantenimiento:
+
+- **CreateUserFunction**: Crea nuevos usuarios (POST /users)
+- **GetUsersFunction**: Recupera lista de usuarios (GET /users)
+- **CreateLoanFunction**: Crea nuevos préstamos (POST /loans)
+- **GetLoansFunction**: Recupera lista de préstamos (GET /loans)
 
 ## Funciones Disponibles
 
-### 1. UserFunction
-**Ruta:** `/api/users`
+### 1. GetUsersFunction (GET)
+**Ruta:** `/api/users`  
+**Método:** GET  
+**Responsabilidad Única:** Listar todos los usuarios
 
-#### GET - Listar Usuarios
 ```bash
 curl -X GET http://localhost:7071/api/users
 ```
@@ -21,12 +31,21 @@ curl -X GET http://localhost:7071/api/users
       "name": "Juan Pérez",
       "documentId": "12345678",
       "email": "juan@example.com"
+    },
+    {
+      "name": "María García",
+      "documentId": "87654321",
+      "email": "maria@example.com"
     }
   ]
 }
 ```
 
-#### POST - Crear Usuario
+### 2. CreateUserFunction (POST)
+**Ruta:** `/api/users`  
+**Método:** POST  
+**Responsabilidad Única:** Crear nuevo usuario
+
 ```bash
 curl -X POST http://localhost:7071/api/users \
   -H "Content-Type: application/json" \
@@ -45,10 +64,11 @@ curl -X POST http://localhost:7071/api/users \
 }
 ```
 
-### 2. LoanFunction
-**Ruta:** `/api/loans`
+### 3. GetLoansFunction (GET)
+**Ruta:** `/api/loans`  
+**Método:** GET  
+**Responsabilidad Única:** Listar todos los préstamos
 
-#### GET - Listar Préstamos
 ```bash
 curl -X GET http://localhost:7071/api/loans
 ```
@@ -61,12 +81,20 @@ curl -X GET http://localhost:7071/api/loans
     {
       "userId": "12345678",
       "bookTitle": "Don Quijote"
+    },
+    {
+      "userId": "87654321",
+      "bookTitle": "Cien años de soledad"
     }
   ]
 }
 ```
 
-#### POST - Crear Préstamo
+### 4. CreateLoanFunction (POST)
+**Ruta:** `/api/loans`  
+**Método:** POST  
+**Responsabilidad Única:** Crear nuevo préstamo
+
 ```bash
 curl -X POST http://localhost:7071/api/loans \
   -H "Content-Type: application/json" \
@@ -111,15 +139,28 @@ CREATE TABLE LOANS (
 );
 ```
 
+## Estructura del Código
+
+### DatabaseUtil (Clase Utilitaria)
+Proporciona funcionalidad compartida para todas las funciones:
+
+- `getConnection()`: Establece conexión JDBC usando variables de entorno
+- `closeResources()`: Cierra ResultSet, Statement y Connection de forma segura
+- `createErrorJson()`: Genera respuestas JSON de error
+- `createSuccessJson()`: Genera respuestas JSON de éxito
+- `createDataResponse()`: Genera respuestas JSON con datos
+
+Esta clase centraliza la lógica de base de datos, evitando duplicación de código.
+
 ## Códigos de Estado HTTP
 
-| Código | Significado |
-|--------|-------------|
-| 200 | OK - Operación exitosa (GET) |
-| 201 | Created - Recurso creado exitosamente (POST) |
-| 400 | Bad Request - Solicitud inválida |
-| 405 | Method Not Allowed - Método HTTP no soportado |
-| 500 | Internal Server Error - Error en el servidor |
+| Código | Significado | Escenario |
+|--------|-------------|----------|
+| 200 | OK | Operación GET exitosa |
+| 201 | Created | Recurso POST creado exitosamente |
+| 400 | Bad Request | JSON inválido, campos faltantes o solitud sin body |
+| 405 | Method Not Allowed | Método HTTP no soportado en la ruta |
+| 500 | Internal Server Error | Error de base de datos o error inesperado |
 
 ## Manejo de Errores
 
@@ -132,22 +173,56 @@ Todas las respuestas de error devuelven un JSON con el siguiente formato:
 }
 ```
 
+### Ejemplos de Errores
+
+**Error: Campos faltantes en POST**
+```json
+{
+  "status": "error",
+  "message": "Missing required fields: name, documentId, email"
+}
+```
+
+**Error: JSON inválido**
+```json
+{
+  "status": "error",
+  "message": "Invalid JSON format"
+}
+```
+
+**Error: Conexión a base de datos**
+```json
+{
+  "status": "error",
+  "message": "Database error: ..."
+}
+
 ## Compilación y Ejecución
 
 ### Compilar
 ```bash
-mvn clean compile
+mvn compile
 ```
 
 ### Empaquetar
 ```bash
-mvn clean package
+mvn package
 ```
 
 ### Ejecutar localmente
 ```bash
 func host start
 ```
+
+## Ventajas de la Arquitectura SRP
+
+✅ **Escalabilidad**: Cada función es independiente y puede escalarse por separado  
+✅ **Mantenibilidad**: Cambios en una función no afectan a otras  
+✅ **Testabilidad**: Cada función es fácil de probar de forma aislada  
+✅ **Reutilización**: DatabaseUtil centraliza lógica común  
+✅ **Despliegue**: Cada función puede desplegarse de forma independiente  
+✅ **Monitoreo**: Métricas y logs específicos por función  
 
 ## Dependencias
 
@@ -160,5 +235,6 @@ func host start
 
 - Todas las respuestas incluyen el header `Content-Type: application/json`
 - Las conexiones de base de datos se cierran correctamente tras cada operación
-- Se maneja validación de campos requeridos en POST
+- Validación de campos requeridos en POST
 - Los errores de base de datos son capturados y devueltos al cliente con detalles
+- Logging detallado en cada función para debugging
