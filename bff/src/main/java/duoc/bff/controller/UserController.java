@@ -55,6 +55,8 @@ public class UserController {
     @PostMapping
     public ResponseEntity<Object> createUser(@RequestBody UserDto userDto) {
         logger.info("Creando nuevo usuario: {}", userDto);
+        logger.debug("UserDto recibido: userId={}, name={}, documentId={}, email={}", 
+                userDto.getUserId(), userDto.getName(), userDto.getDocumentId(), userDto.getEmail());
         
         String url = faasIntegrationService.getUserServiceUrl();
         ResponseEntity<Object> response = faasIntegrationService.post(url, userDto, Object.class);

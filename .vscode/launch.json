@@ -2,6 +2,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "type": "java",
+            "name": "BffApplication",
+            "request": "launch",
+            "mainClass": "duoc.bff.BffApplication",
+            "projectName": "bff"
+        },
+        {
             "name": "Attach to Java Functions",
             "type": "java",
             "request": "attach",

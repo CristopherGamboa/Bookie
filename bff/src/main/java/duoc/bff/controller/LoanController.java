@@ -55,6 +55,9 @@ public class LoanController {
     @PostMapping
     public ResponseEntity<Object> createLoan(@RequestBody LoanDto loanDto) {
         logger.info("Creando nuevo préstamo: {}", loanDto);
+        logger.debug("LoanDto recibido: loanId={}, userId={}, bookTitle={}, loanDate={}, returnDate={}, status={}", 
+                loanDto.getLoanId(), loanDto.getUserId(), loanDto.getBookTitle(), 
+                loanDto.getLoanDate(), loanDto.getReturnDate(), loanDto.getStatus());
         
         String url = faasIntegrationService.getLoanServiceUrl();
         ResponseEntity<Object> response = faasIntegrationService.post(url, loanDto, Object.class);

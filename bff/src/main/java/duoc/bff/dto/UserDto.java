@@ -1,7 +1,20 @@
 package duoc.bff.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * DTO para datos de usuario.
+ * 
+ * JSON Example (enviar SOLO si tiene valores, omitir "null" strings):
+ * {
+ *   "userId": 1,
+ *   "name": "John Doe",
+ *   "documentId": "12345678",
+ *   "email": "john@example.com"
+ * }
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class UserDto {
 
     @JsonProperty("userId")

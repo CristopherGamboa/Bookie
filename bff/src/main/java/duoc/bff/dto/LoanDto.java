@@ -1,7 +1,21 @@
 package duoc.bff.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * DTO para datos de préstamo de libro.
+ * 
+ * JSON Example (enviar SOLO si tiene valores, omitir "null" strings):
+ * {
+ *   "userId": 1,
+ *   "bookTitle": "Clean Code",
+ *   "loanDate": "2026-03-25",
+ *   "returnDate": "2026-04-25",
+ *   "status": "ACTIVE"
+ * }
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class LoanDto {
 
     @JsonProperty("loanId")

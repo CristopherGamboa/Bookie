@@ -16,6 +16,10 @@ public class BffApplication {
 	 * Configura e inyecta RestTemplate como un bean singleton.
 	 * Utilizado por FaasIntegrationService para realizar llamadas HTTP
 	 * hacia los servicios Azure Functions.
+	 * 
+	 * La configuración de Jackson se aplica a través de application.properties:
+	 * - spring.jackson.default-property-inclusion=non_null
+	 * Esta configuración hace que se omitan campos null en todas las serializaciones.
 	 *
 	 * @return instancia de RestTemplate
 	 */
