@@ -93,7 +93,7 @@ public class CreateLoanGraphQLFunction {
     /**
      * Creates a new loan in the database
      */
-    private JsonObject createLoan(String userId, String bookTitle) throws SQLException {
+    private java.util.Map<String, Object> createLoan(String userId, String bookTitle) throws SQLException {
         Connection conn = null;
         PreparedStatement stmt = null;
 
@@ -106,13 +106,14 @@ public class CreateLoanGraphQLFunction {
 
             stmt.executeUpdate();
 
-            // Build the response
-            JsonObject payload = new JsonObject();
-            JsonObject loan = new JsonObject();
-            loan.addProperty("userId", userId);
-            loan.addProperty("bookTitle", bookTitle);
-            payload.add("loan", loan);
-            payload.addProperty("success", "Loan created successfully");
+            // Usamos Map estándar de Java en lugar de JsonObject
+            java.util.Map<String, Object> payload = new java.util.HashMap<>();
+            java.util.Map<String, Object> loan = new java.util.HashMap<>();
+            loan.put("userId", userId);
+            loan.put("bookTitle", bookTitle);
+            
+            payload.put("loan", loan);
+            payload.put("success", "Loan created successfully");
 
             return payload;
         } finally {
@@ -150,23 +151,12 @@ public class CreateLoanGraphQLFunction {
             // Execute the GraphQL mutation
             var executionResult = graphQL.execute(queryString);
 
-            // Build the GraphQL standard response
-            JsonObject response = new JsonObject();
-
-            if (executionResult.getErrors() != null && !executionResult.getErrors().isEmpty()) {
-                JsonArray errorsArray = new JsonArray();
-                executionResult.getErrors().forEach(error ->
-                        errorsArray.add(error.getMessage())
-                );
-                response.add("errors", errorsArray);
-            } else {
-                JsonObject data = gson.fromJson(gson.toJson(executionResult.getData()), JsonObject.class);
-                response.add("data", data);
-            }
+            // Dejamos que GraphQL arme su propia respuesta estándar (data/errors)
+            String jsonResponse = gson.toJson(executionResult.toSpecification());
 
             return request.createResponseBuilder(HttpStatus.OK)
                     .header("Content-Type", "application/json")
-                    .body(response.toString())
+                    .body(jsonResponse)
                     .build();
 
         } catch (com.google.gson.JsonSyntaxException e) {
