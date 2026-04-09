@@ -29,8 +29,11 @@ public class FaasIntegrationService {
     @Value("${faas.user.url}")
     private String userServiceUrl;
 
-    @Value("${faas.loan.url}")
-    private String loanServiceUrl;
+    @Value("${faas.graphql.query.url}")
+    private String graphqlQueryUrl;
+
+    @Value("${faas.graphql.mutation.url}")
+    private String graphqlMutationUrl;
 
     /**
      * Constructor con inyección de dependencias para RestTemplate.
@@ -206,12 +209,11 @@ public class FaasIntegrationService {
         return userServiceUrl;
     }
 
-    /**
-     * Obtiene la URL del servicio de préstamos.
-     *
-     * @return URL configurada para el servicio de préstamos
-     */
-    public String getLoanServiceUrl() {
-        return loanServiceUrl;
+    public String getGraphqlQueryUrl() {
+        return graphqlQueryUrl;
+    }
+
+    public String getGraphqlMutationUrl() {
+        return graphqlMutationUrl;
     }
 }

@@ -2,6 +2,10 @@ package duoc.bff.controller;
 
 import duoc.bff.dto.LoanDto;
 import duoc.bff.service.FaasIntegrationService;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -28,41 +32,44 @@ public class LoanController {
         this.faasIntegrationService = faasIntegrationService;
     }
 
-    /**
-     * Obtiene la lista de todos los préstamos.
-     * Realiza una llamada GET al servicio FaaS de préstamos.
-     *
-     * @return ResponseEntity con la lista de préstamos
-     */
     @GetMapping
     public ResponseEntity<Object> getAllLoans() {
-        logger.info("Solicitando lista de préstamos");
+        logger.info("Solicitando lista de préstamos vía GraphQL Query");
         
-        String url = faasIntegrationService.getLoanServiceUrl();
-        ResponseEntity<Object> response = faasIntegrationService.get(url, Object.class);
+        String url = faasIntegrationService.getGraphqlQueryUrl();
         
-        logger.info("Respuesta recibida del servicio FaaS: {}", response.getStatusCode());
+        // Armamos el string literal de la Query de GraphQL
+        String query = "{ loans { userId bookTitle } }";
+        
+        // Empaquetamos en un Map para que tu servicio lo convierta a JSON
+        Map<String, String> requestBody = new HashMap<>();
+        requestBody.put("query", query);
+        
+        // ¡OJO AQUÍ! GraphQL siempre viaja por POST, incluso para obtener datos (Queries)
+        ResponseEntity<Object> response = faasIntegrationService.post(url, requestBody, Object.class);
+        
+        logger.info("Respuesta recibida del servicio FaaS GraphQL: {}", response.getStatusCode());
         return response;
     }
 
-    /**
-     * Crea un nuevo préstamo de libro.
-     * Realiza una llamada POST al servicio FaaS de préstamos con los datos del préstamo.
-     *
-     * @param loanDto datos del préstamo a crear
-     * @return ResponseEntity con la respuesta del FaaS (préstamo creado)
-     */
     @PostMapping
     public ResponseEntity<Object> createLoan(@RequestBody LoanDto loanDto) {
-        logger.info("Creando nuevo préstamo: {}", loanDto);
-        logger.debug("LoanDto recibido: loanId={}, userId={}, bookTitle={}, loanDate={}, returnDate={}, status={}", 
-                loanDto.getLoanId(), loanDto.getUserId(), loanDto.getBookTitle(), 
-                loanDto.getLoanDate(), loanDto.getReturnDate(), loanDto.getStatus());
+        logger.info("Creando nuevo préstamo vía GraphQL Mutation: {}", loanDto);
         
-        String url = faasIntegrationService.getLoanServiceUrl();
-        ResponseEntity<Object> response = faasIntegrationService.post(url, loanDto, Object.class);
+        String url = faasIntegrationService.getGraphqlMutationUrl();
         
-        logger.info("Préstamo creado exitosamente. Status: {}", response.getStatusCode());
+        // Armamos el string literal de la Mutación inyectando los datos del DTO
+        String mutation = String.format(
+            "mutation { createLoan(userId: \"%s\", bookTitle: \"%s\") { success loan { userId bookTitle } } }",
+            loanDto.getUserId(), loanDto.getBookTitle()
+        );
+        
+        Map<String, String> requestBody = new HashMap<>();
+        requestBody.put("query", mutation);
+        
+        ResponseEntity<Object> response = faasIntegrationService.post(url, requestBody, Object.class);
+        
+        logger.info("Préstamo creado exitosamente vía GraphQL. Status: {}", response.getStatusCode());
         return response;
     }
 }
