@@ -98,9 +98,14 @@ public class FaasIntegrationService {
             logger.info("Clase del body: {}", requestBody.getClass().getSimpleName());
             logger.info("Body original (toString): {}", requestBody);
             
-            // Convertir a Map excluyendo campos null
-            Object bodyToSend = DtoConverter.toMapExcludingNull(requestBody);
-            logger.info("Body convertido a Map (sin nulls): {}", bodyToSend);
+            // Convertir a Map excluyendo campos null (si ya es un Map, lo usamos directo para evitar errores de reflexión en Java 21)
+            Object bodyToSend;
+            if (requestBody instanceof Map) {
+                bodyToSend = requestBody;
+            } else {
+                bodyToSend = DtoConverter.toMapExcludingNull(requestBody);
+            }
+            logger.info("Body listo para serializar: {}", bodyToSend);
             
             // Serializar Map a JSON String puro para Azure Functions
             // Azure Functions espera HttpRequestMessage<Optional<String>>, no un objeto serializado
