@@ -82,8 +82,19 @@ public class CreateLoanGraphQLFunction {
                         }))
                 .build();
 
-        // Create the schema
+        
+        // GraphQL exige obligatoriamente un tipo Query base para compilar el esquema
+        GraphQLObjectType dummyQuery = GraphQLObjectType.newObject()
+                .name("Query")
+                .field(f -> f
+                        .name("_dummy")
+                        .type(Scalars.GraphQLString)
+                        .dataFetcher(env -> "dummy"))
+                .build();
+
+        // Create the schema (Ahora agregamos el query de mentira)
         GraphQLSchema schema = GraphQLSchema.newSchema()
+                .query(dummyQuery) // <-- ESTA ES LA LÍNEA NUEVA
                 .mutation(mutationType)
                 .build();
 
