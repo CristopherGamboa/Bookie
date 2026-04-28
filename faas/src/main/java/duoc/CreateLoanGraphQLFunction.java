@@ -15,9 +15,15 @@ import graphql.GraphQL;
 import graphql.schema.GraphQLObjectType;
 import graphql.schema.GraphQLSchema;
 import graphql.Scalars;
+import com.azure.messaging.eventgrid.EventGridEvent;
+import com.azure.messaging.eventgrid.EventGridPublisherClient;
+import com.azure.messaging.eventgrid.EventGridPublisherClientBuilder;
+import com.azure.core.credential.AzureKeyCredential;
+import com.azure.core.util.BinaryData;
 
 import java.sql.*;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 /**
  * Azure Function for GraphQL mutations on loans.
@@ -27,6 +33,7 @@ import java.util.Optional;
 public class CreateLoanGraphQLFunction {
 
     private static final Gson gson = new Gson();
+    private static final Logger logger = Logger.getLogger(CreateLoanGraphQLFunction.class.getName());
     private GraphQL graphQL;
 
     public CreateLoanGraphQLFunction() {
@@ -102,7 +109,7 @@ public class CreateLoanGraphQLFunction {
     }
 
     /**
-     * Creates a new loan in the database
+     * Creates a new loan in the database and publishes an event to Azure Event Grid
      */
     private java.util.Map<String, Object> createLoan(String userId, String bookTitle) throws SQLException {
         Connection conn = null;
@@ -117,6 +124,14 @@ public class CreateLoanGraphQLFunction {
 
             stmt.executeUpdate();
 
+            // Enviar evento a Azure Event Grid después de insertar exitosamente
+            try {
+                publishLoanCreatedEvent(userId, bookTitle);
+            } catch (Exception e) {
+                // No interrumpimos la creación del préstamo si Event Grid falla
+                logger.warning("Failed to publish loan created event to Event Grid: " + e.getMessage());
+            }
+
             // Usamos Map estándar de Java en lugar de JsonObject
             java.util.Map<String, Object> payload = new java.util.HashMap<>();
             java.util.Map<String, Object> loan = new java.util.HashMap<>();
@@ -130,6 +145,40 @@ public class CreateLoanGraphQLFunction {
         } finally {
             DatabaseUtil.closeResources(null, stmt, conn);
         }
+    }
+
+    /**
+     * Publishes a LoanCreated event to Azure Event Grid
+     */
+    private void publishLoanCreatedEvent(String userId, String bookTitle) {
+        String endpoint = System.getenv("EVENT_GRID_ENDPOINT");
+        String key = System.getenv("EVENT_GRID_KEY");
+        
+        if (endpoint == null || key == null) {
+            throw new IllegalArgumentException(
+                "EVENT_GRID_ENDPOINT and EVENT_GRID_KEY environment variables must be set");
+        }
+        
+        // Crear cliente de Event Grid
+        EventGridPublisherClient<EventGridEvent> client = new EventGridPublisherClientBuilder()
+                .endpoint(endpoint)
+                .credential(new AzureKeyCredential(key))
+                .buildEventGridEventPublisherClient();
+        
+        // Construir datos del evento
+        java.util.Map<String, Object> eventData = new java.util.HashMap<>();
+        eventData.put("userId", userId);
+        eventData.put("bookTitle", bookTitle);
+        
+        // Construir y enviar el evento
+        EventGridEvent event = new EventGridEvent(
+                "Prestamos/Nuevos",                     // subject
+                "Biblioteca.Prestamo.Creado",           // eventType
+                BinaryData.fromObject(eventData),       // data (debe ser BinaryData)
+                "1.0"                                   // dataVersion
+        );
+        
+        client.sendEvent(event);
     }
 
     @FunctionName("CreateLoanGraphQLFunction")
