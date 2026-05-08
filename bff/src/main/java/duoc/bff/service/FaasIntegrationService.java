@@ -206,6 +206,34 @@ public class FaasIntegrationService {
     }
 
     /**
+     * Realiza una llamada DELETE genérica a una URL de FaaS.
+     *
+     * @param url URL completa del endpoint FaaS (incluida la ruta dinámica si aplica)
+     * @param responseType clase del tipo de respuesta esperado
+     * @return ResponseEntity con la respuesta del FaaS
+     */
+    public <T> ResponseEntity<T> delete(String url, Class<T> responseType) {
+        logger.info("Realizando DELETE a: {}", url);
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("Accept", MediaType.APPLICATION_JSON_VALUE);
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            
+            ResponseEntity<T> response = restTemplate.exchange(url, HttpMethod.DELETE, entity, responseType);
+            logger.info("Respuesta DELETE exitosa. Status: {}", response.getStatusCode());
+            
+            return response;
+        } catch (HttpClientErrorException e) {
+            logger.error("Error HTTP en llamada DELETE a {}: {} - Respuesta: {}",
+                    url, e.getStatusCode(), e.getResponseBodyAsString(), e);
+            throw new RuntimeException("Error HTTP " + e.getStatusCode() + " al eliminar el recurso: " + e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            logger.error("Error en llamada DELETE a {}: {}", url, e.getMessage(), e);
+            throw new RuntimeException("Error al eliminar el recurso en el servicio FaaS", e);
+        }
+    }
+
+    /**
      * Obtiene la URL del servicio de usuarios.
      *
      * @return URL configurada para el servicio de usuarios

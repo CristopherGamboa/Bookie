@@ -12,23 +12,23 @@ import java.sql.SQLException;
 import java.util.logging.Logger;
 
 /**
- * Azure Function that consumes loan creation events from Azure Event Grid.
- * Acts as an event subscriber demonstrating event-driven architecture.
- * Single Responsibility: Receive and log loan created events.
+ * Azure Function that consumes user deletion events from Azure Event Grid.
+ * Ensures data integrity by cleaning up associated loan records.
+ * Single Responsibility: Receive user deletion events and clean up loan records.
  */
-public class LoanEventConsumerFunction {
+public class UserCleanupConsumerFunction {
 
     private static final Gson gson = new Gson();
-    private static final Logger logger = Logger.getLogger(LoanEventConsumerFunction.class.getName());
+    private static final Logger logger = Logger.getLogger(UserCleanupConsumerFunction.class.getName());
 
-    @FunctionName("LoanEventConsumer")
+    @FunctionName("UserCleanupConsumer")
     public void run(
             @EventGridTrigger(name = "event")
             String event,
             final ExecutionContext context) {
 
         logger.info("========================================");
-        logger.info("LoanEventConsumer - New Event Received");
+        logger.info("UserCleanupConsumer - New Event Received");
         logger.info("========================================");
 
         Connection conn = null;
@@ -62,27 +62,27 @@ public class LoanEventConsumerFunction {
             if (eventJson.has("data")) {
                 logger.info("Event Data: " + eventJson.get("data").toString());
 
-                // Parse the data object for loan information
+                // Parse the data object for user information
                 JsonObject data = eventJson.getAsJsonObject("data");
                 
                 String eventType = eventJson.has("eventType") ? 
                         eventJson.get("eventType").getAsString() : "";
-                String bookTitle = data.has("bookTitle") ? 
-                        data.get("bookTitle").getAsString() : null;
                 
                 if (data.has("userId")) {
                     logger.info("  - User ID: " + data.get("userId").getAsString());
                 }
-                if (bookTitle != null) {
-                    logger.info("  - Book Title: " + bookTitle);
-                }
 
-                // Check if this is a loan creation event
-                if ("Biblioteca.Prestamo.Creado".equals(eventType) && bookTitle != null) {
-                    logger.info("Processing loan creation event for book: " + bookTitle);
-                    updateBookAvailability(bookTitle, context);
+                // Check if this is a user deletion event
+                if ("Biblioteca.Usuario.Eliminado".equals(eventType)) {
+                    if (data.has("userId")) {
+                        String userId = data.get("userId").getAsString();
+                        logger.info("Processing user deletion event for userId: " + userId);
+                        cleanupUserLoans(userId, context);
+                    } else {
+                        logger.warning("User deletion event is missing userId field");
+                    }
                 } else {
-                    logger.info("Event is not a loan creation event or book title is missing");
+                    logger.info("Event is not a user deletion event");
                 }
             }
 
@@ -98,30 +98,30 @@ public class LoanEventConsumerFunction {
     }
 
     /**
-     * Updates the availability of a book in the database after a loan is created.
-     * Decreases the availability count by 1 for the specified book title.
+     * Deletes all loan records associated with a user from the database.
+     * This ensures that when a user is deleted, their loan records are cleaned up automatically.
      */
-    private void updateBookAvailability(String bookTitle, ExecutionContext context) {
+    private void cleanupUserLoans(String userId, ExecutionContext context) {
         Connection conn = null;
         PreparedStatement stmt = null;
 
         try {
             conn = DatabaseUtil.getConnection();
             
-            String updateSql = "UPDATE BOOKS SET AVAILABILITY = AVAILABILITY - 1 WHERE TITLE = ?";
-            stmt = conn.prepareStatement(updateSql);
-            stmt.setString(1, bookTitle);
+            String deleteSql = "DELETE FROM LOANS WHERE USER_ID = ?";
+            stmt = conn.prepareStatement(deleteSql);
+            stmt.setString(1, userId);
             
-            int rowsUpdated = stmt.executeUpdate();
+            int rowsDeleted = stmt.executeUpdate();
             
-            if (rowsUpdated > 0) {
-                logger.info("Disponibilidad actualizada para el libro: " + bookTitle);
+            if (rowsDeleted > 0) {
+                logger.info("Cleaned up " + rowsDeleted + " loan record(s) for user: " + userId);
             } else {
-                logger.warning("No book found with title: " + bookTitle);
+                logger.info("No loan records found to delete for user: " + userId);
             }
 
         } catch (SQLException e) {
-            logger.severe("Database error while updating book availability: " + e.getMessage());
+            logger.severe("Database error while cleaning up user loans: " + e.getMessage());
             if (context != null) {
                 context.getLogger().severe("SQL Error: " + e.getSQLState() + " - " + e.getMessage());
             }

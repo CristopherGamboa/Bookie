@@ -64,4 +64,25 @@ public class UserController {
         logger.info("Usuario creado exitosamente. Status: {}", response.getStatusCode());
         return response;
     }
+
+    /**
+     * Elimina un usuario existente.
+     * Realiza una llamada DELETE al servicio FaaS de usuarios con el ID del usuario.
+     * También dispara un evento en Azure Event Grid con los datos de la eliminación.
+     *
+     * @param userId ID del usuario a eliminar
+     * @return ResponseEntity con la respuesta del FaaS
+     */
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<Object> deleteUser(@PathVariable Long userId) {
+        logger.info("Eliminando usuario con ID: {}", userId);
+        
+        String url = faasIntegrationService.getUserServiceUrl() + "/" + userId;
+        logger.debug("URL para DELETE: {}", url);
+        
+        ResponseEntity<Object> response = faasIntegrationService.delete(url, Object.class);
+        
+        logger.info("Usuario eliminado exitosamente. Status: {}", response.getStatusCode());
+        return response;
+    }
 }

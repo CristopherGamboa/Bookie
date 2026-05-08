@@ -11,8 +11,14 @@ services:
       - "1521:1521"
     volumes:
       - oracle_data:/opt/oracle/oradata
+      - ./init.sql:/opt/oracle/scripts/startup/init.sql
     networks:
       - cloud_network
+    healthcheck:
+      test: ["CMD", "sqlplus", "-v"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   bff-app:
     build:
@@ -21,8 +27,16 @@ services:
     container_name: bff-biblioteca
     ports:
       - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:oracle:thin:@oracle-db:1521:xe
+      - SPRING_DATASOURCE_USERNAME=bookie_admin
+      - SPRING_DATASOURCE_PASSWORD=Admin1.
+      - FAAS_USER_URL=http://localhost:7071/api/users
+      - FAAS_GRAPHQL_QUERY_URL=http://localhost:7071/api/graphql/query
+      - FAAS_GRAPHQL_MUTATION_URL=http://localhost:7071/api/graphql/mutation
     depends_on:
-      - oracle-db
+      oracle-db:
+        condition: service_healthy
     networks:
       - cloud_network
 
