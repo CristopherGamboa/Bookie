@@ -38,22 +38,26 @@ public class DatabaseUtil {
     }
 
     /**
-     * Creates a JSON error response
+     * Creates a JSON error response with format: {"error": "mensaje"}
+     * 
+     * @param message the error message to include in the response
+     * @return JSON string with error information
      */
     public static String createErrorJson(String message) {
         JsonObject error = new JsonObject();
-        error.addProperty("status", "error");
-        error.addProperty("message", message);
+        error.addProperty("error", message);
         return error.toString();
     }
 
     /**
-     * Creates a JSON success response for POST operations
+     * Creates a JSON success response with format: {"success": "mensaje"}
+     * 
+     * @param message the success message to include in the response
+     * @return JSON string with success information
      */
     public static String createSuccessJson(String message) {
         JsonObject response = new JsonObject();
-        response.addProperty("status", "success");
-        response.addProperty("message", message);
+        response.addProperty("success", message);
         return response.toString();
     }
 

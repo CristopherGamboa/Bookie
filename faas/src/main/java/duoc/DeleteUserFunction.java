@@ -6,6 +6,7 @@ import com.microsoft.azure.functions.HttpRequestMessage;
 import com.microsoft.azure.functions.HttpResponseMessage;
 import com.microsoft.azure.functions.HttpStatus;
 import com.microsoft.azure.functions.annotation.AuthorizationLevel;
+import com.microsoft.azure.functions.annotation.BindingName;
 import com.microsoft.azure.functions.annotation.FunctionName;
 import com.microsoft.azure.functions.annotation.HttpTrigger;
 import com.google.gson.JsonObject;
@@ -17,6 +18,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.sql.*;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 
@@ -40,6 +42,7 @@ public class DeleteUserFunction {
                 authLevel = AuthorizationLevel.ANONYMOUS,
                 route = "users/{userId}")
                 HttpRequestMessage<Optional<String>> request,
+            @BindingName("userId")
             final String userId,
             final ExecutionContext context) {
         
@@ -116,6 +119,12 @@ public class DeleteUserFunction {
      * Failures in event publication are logged but do not affect the main response,
      * as the database deletion has already been committed.
      * 
+     * This method:
+     * - Validates Event Grid credentials before attempting connection
+     * - Uses a timeout of 10 seconds to prevent hanging requests
+     * - Catches all exceptions to ensure they never propagate to the response
+     * - Logs all failures as warnings, not errors, since the DB deletion succeeded
+     * 
      * @param userId The ID of the deleted user
      * @param context The Azure Function execution context for logging
      */
@@ -127,9 +136,11 @@ public class DeleteUserFunction {
             
             // Validate Event Grid credentials
             if (eventGridEndpoint == null || eventGridKey == null) {
-                context.getLogger().warning("Event Grid credentials not found. Event publication skipped.");
+                context.getLogger().warning("Event Grid credentials not found (EVENT_GRID_ENDPOINT or EVENT_GRID_KEY). Event publication skipped for userId: " + userId);
                 return;
             }
+            
+            context.getLogger().info("Attempting to publish deletion event to Event Grid for userId: " + userId);
             
             // Create event data (JSON payload with userId)
             JsonObject eventData = new JsonObject();
@@ -147,31 +158,46 @@ public class DeleteUserFunction {
             JsonArray events = new JsonArray();
             events.add(eventGridEvent);
             
-            // Create HTTP request to Event Grid
-            HttpClient client = HttpClient.newHttpClient();
+            // Create HTTP request to Event Grid with timeout
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(10))
+                    .build();
+            
             String requestBody = events.toString();
             
             HttpRequest eventGridRequest = HttpRequest.newBuilder()
                     .uri(new URI(eventGridEndpoint))
                     .header("Content-Type", "application/json")
                     .header("aeg-sas-key", eventGridKey)
+                    .timeout(Duration.ofSeconds(10))
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .build();
             
             // Send the request
             HttpResponse<String> response = client.send(eventGridRequest, HttpResponse.BodyHandlers.ofString());
             
-            if (response.statusCode() == 200 || response.statusCode() == 204) {
-                context.getLogger().info("User deletion event published successfully for userId: " + userId);
+            // Check response status
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                context.getLogger().info("User deletion event published successfully to Event Grid for userId: " + userId + " (Status: " + response.statusCode() + ")");
             } else {
                 context.getLogger().warning("Event Grid returned status " + response.statusCode() + 
-                        " for userId: " + userId + ". Response: " + response.body());
+                        " for userId: " + userId + ". Response body: " + response.body());
             }
             
+        } catch (java.net.ConnectException e) {
+            // Network connection error - don't propagate since DB delete succeeded
+            context.getLogger().warning("Failed to connect to Event Grid for userId: " + userId + 
+                    ". Connection error: " + e.getMessage() + ". DB deletion was successful, event publication skipped.");
+        } catch (java.net.SocketTimeoutException e) {
+            // Timeout error - don't propagate since DB delete succeeded
+            context.getLogger().warning("Event Grid request timeout for userId: " + userId + 
+                    ". DB deletion was successful, event publication skipped due to timeout.");
         } catch (Exception e) {
-            // Log the error but do not throw - database operation already succeeded
-            context.getLogger().warning("Failed to publish user deletion event for userId: " + userId + 
-                    ". Error: " + e.getMessage());
+            // Catch all other exceptions - log as warning, don't propagate
+            // This ensures that even if Event Grid has issues, the API response is still successful
+            context.getLogger().warning("Failed to publish user deletion event to Event Grid for userId: " + userId + 
+                    ". Exception type: " + e.getClass().getSimpleName() + ", Message: " + e.getMessage() + 
+                    ". DB deletion was successful, event publication failed gracefully.");
         }
     }
 }
